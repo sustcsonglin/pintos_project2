@@ -507,10 +507,29 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp,const char* args)
+setup_stack (void **esp,const char* file_name)
 {
     uint8_t *kpage;
     bool success = false;
+
+    char *token, *save_ptr, *fn_copy;
+    char **tokens = palloc_get_page(0);
+    int i = 0;
+    int tokensLen = 0;
+    char *espChar;
+    uint8_t word_align = 0;
+    fn_copy = palloc_get_page(0);
+    if(fn_copy ==NULL) return TID_ERROR;
+    strlcpy(fn_copy,file_name,PGSIZE);
+
+    for(token = strok_r(fn_copy," ",&save_ptr);
+    token!=NULL; token = strtok_r(NULL," ",&save_ptr))
+    {
+        tokens[i] = token;
+        i++;
+    }
+
+
 
 
     kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -519,73 +538,41 @@ setup_stack (void **esp,const char* args)
         success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
         if (success) {
             *esp = PHYS_BASE;
-
+            espChar = (char*) *esp;
             /* This is the part for function parameter calling ~~~ */
 
             /* Get the new thread's command's name */
-
-            char* cmd = thread_current()->name;
-
-            /* We assume that the number of argument is below 256. */
-            char* address[256];
-            char* arg[256];
-
-            char* token = cmd;
-            char* save_ptr = args;
-
-            int n = 0;
-
-            for(; token != NULL; token = strtok_r(NULL," ",&save_ptr)){
-                /* Every argument will end with '\0' so we need add one. */
-                esp -= (strlen(token) +1 );
-                arg[n] = token;
+            int j, len;
+            for(j == i; j > 0; j--) {
+                len = strlen(tokens[i - 1]);
+                espChar -= len + 1;
+                tokensLen += len + 1;
+                strlcpy(espChar, tokens[j - 1], len + 1);
+                tokens[j - 1] = espChar;
             }
 
-            char *esp_back_up = esp;
-
-
-            for(int i = 1; i <= n; i++){
-                /* strlcpy will automatically add zero at end */
-                strlcpy(esp,arg[n-i],str(arg[n-i]) + 1);
-
-                address[i-1] = esp;
-
-                esp += str(arg[n-i] + 1);
+            tokensLen = 4 - (tokensLen % 4);
+            for(j = 0; j < tokensLen; j++){
+                espChar--;
+                *espChar = word_align;
             }
 
-
-            esp = esp_back_up;
-
-
-
-
-
-
-            /* Word  Align */
-            while((int) esp % 4 != 0){
-                esp--;
-                *esp='\0';
+            espChar-=4;
+            *espChar = 0;
+            for(j=i; j>0; j--)
+            {
+                espChar -= 4;
+                *((int*)espChar)= (unsigned)tokens[j-1];
             }
 
-
-
-
-            /* argv[argc] must be zero */
-
-            int *p = esp-4;
-            *p-- = 0;
-
-
-            /* Place the argument address to the stack. */
-
-            for(int i = n-1; i >= 0 ; i--){
-                *p-- = (int*) address[i];
-            }
-
-            *p-- = p+1;
-            *p-- = n;
-            *p = 0;
-            esp = p;
+            void *tmp = espChar;
+            espChar -= 4;
+            *((int *) espChar) = (unsigned)tmp;
+            espChar -=4;
+            *espChar = i;
+            espChar -=4;
+            *espChar = 0;
+            *esp = espChar; 
 
 
 
