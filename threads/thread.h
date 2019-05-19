@@ -5,14 +5,16 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#include "../filesys/file.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
-  {
+{
     THREAD_RUNNING,     /* Running thread. */
     THREAD_READY,       /* Not running but ready to run. */
     THREAD_BLOCKED,     /* Waiting for an event to trigger. */
     THREAD_DYING        /* About to be destroyed. */
-  };
+};
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
@@ -81,7 +83,7 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 struct thread
-  {
+{
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
@@ -91,20 +93,29 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem childelem;         /* List element for children processes list. */
     struct list children;               /* List of children processes. */
+    struct list openfiles;
     int exit_status;                    /* The exit status code */
+    int load_status;                     /* The load status coed */
+    struct semaphore load_sema;          /* The semaphore used to notify the parent process whether the child process is loaded successfully. */
+    struct semaphore exit_sema;          /* The exit semaphore. */
     struct semaphore wait_sema;         /* The semaphore used for parent process to wait for its child process's exit. */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct file* code_file;             /* Executable file. */
+    struct file* file[128];             /* All of the open files */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-  };
+};
+
+/*struct for maintaining all the open files a certain thread opened */
+
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -128,11 +139,11 @@ tid_t thread_tid (void);
 const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
-void thread_yield (void);
+                        void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
-typedef void thread_action_func (struct thread *t, void *aux);
-void thread_foreach (thread_action_func *, void *);
+                        typedef void thread_action_func (struct thread *t, void *aux);
+        void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);

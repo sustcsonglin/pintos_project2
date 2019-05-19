@@ -285,7 +285,6 @@ run_task (char **argv)
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
-  printf("!!!!\n");
   process_wait (process_execute (task));
 #else
   run_test (task);
@@ -322,7 +321,6 @@ run_actions (char **argv)
 
   while (*argv != NULL)
     {
-      printf("hello world\n");
       const struct action *a;
       int i;
 
@@ -330,11 +328,8 @@ run_actions (char **argv)
       for (a = actions; ; a++)
         if (a->name == NULL)
           PANIC ("unknown action `%s' (use -h for help)", *argv);
-        else if (!strcmp (*argv, a->name)) {
-            printf(a->name );
-            printf("\n");
-            break;
-        }
+        else if (!strcmp (*argv, a->name))
+          break;
 
       /* Check for required arguments. */
       for (i = 1; i < a->argc; i++)
@@ -342,7 +337,6 @@ run_actions (char **argv)
           PANIC ("action `%s' requires %d argument(s)", *argv, a->argc - 1);
 
       /* Invoke action and advance. */
-
       a->function (argv);
       argv += a->argc;
     }
